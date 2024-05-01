@@ -1,0 +1,109 @@
+#include <FirebaseESP32.h>
+#include <WiFi.h>
+
+#define FIREBASE_HOST "your URL real time database firebase"  // URL Real Time Data Firebase
+#define FIREBASE_AUTH "your firebase token"                   // Token Firebase
+#define WIFI_SSID "your wifi"
+#define WIFI_PASSWORD "wifi password"
+
+FirebaseData firebaseData;
+
+int Rled = 5;
+int Yled = 18;
+int Bled = 19;
+int ldr = 34;
+
+String Switch_R;
+String Switch_Y;
+String Switch_B;
+String automaticMode;
+int bright_val = 0;
+
+void setup() {
+  pinMode(Rled, OUTPUT);
+  pinMode(Yled, OUTPUT);
+  pinMode(Bled, OUTPUT);
+  pinMode(ldr, INPUT);
+
+  Serial.begin(115200);
+  digitalWrite(Rled, LOW);
+  digitalWrite(Yled, LOW);
+  digitalWrite(Bled, LOW);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Menghubungkan Wi-Fi");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(10);
+  }
+
+  Serial.println();
+  Serial.print("Terhubung dengan IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.println();
+  Serial.println("==================================");
+  Serial.println("Terhubung...");
+
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  Firebase.reconnectWiFi(true);
+  Firebase.setReadTimeout(firebaseData, 1000 ^ 60);
+  Firebase.setwriteSizeLimit(firebaseData, "tiny");
+}
+
+void modeOtomatis() {                   // sesuai nama aplikasi dan path firebase
+  if (Firebase.getString(firebaseData, "/LED_Controller/AutomaticMode/ganti")) {
+    automaticMode = firebaseData.stringData();
+  }
+
+  bright_val = analogRead(ldr);
+  bright_val = map(bright_val, 0, 4095, 0, 1500);
+
+  Firebase.setInt(firebaseData, "tingkat_kecerahan", bright_val);
+
+  if (automaticMode == "1") {
+    if (bright_val < 19) {              // masi blm fix val nya
+      digitalWrite(Rled, HIGH);
+      digitalWrite(Yled, HIGH);
+      digitalWrite(Bled, HIGH);
+    } else {
+      digitalWrite(Rled, LOW);
+      digitalWrite(Yled, LOW);
+      digitalWrite(Bled, LOW);
+    }
+  }
+}
+
+void loop() {
+  // Manual                             // sesuai nama aplikai dan path firebase
+  if (Firebase.getString(firebaseData, "/LED_Controller/SWITCH-S1/ganti")) {
+    Switch_R = firebaseData.stringData();
+  }
+  if (Firebase.getString(firebaseData, "/LED_Controller/SWITCH-S2/ganti")) {
+    Switch_Y = firebaseData.stringData();
+  }
+  if (Firebase.getString(firebaseData, "/LED_Controller/SWITCH-S3/ganti")) {
+    Switch_B = firebaseData.stringData();
+  }
+
+  if (Switch_R == "1") {
+    digitalWrite(Rled, HIGH);
+  } else {
+    digitalWrite(Rled, LOW);
+  }
+
+  if (Switch_Y == "1") {
+    digitalWrite(Yled, HIGH);
+  } else {
+    digitalWrite(Yled, LOW);
+  }
+
+  if (Switch_B == "1") {
+    digitalWrite(Bled, HIGH);
+  } else {
+    digitalWrite(Bled, LOW);
+  }
+
+  modeOtomatis();
+
+  Serial.println(bright_val);
+}
